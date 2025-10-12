@@ -6,6 +6,19 @@ LocalSharedMemory is a simple WebAssembly.Memory object which can be transferred
 
 #
 
+### 0. new ###
+Constructing a LocalSharedMemory can be done with using regular construction methods:
+
+    /* default page size = 1000 */
+    self.memory = new LocalSharedMemory(); 
+
+    /* using regular memory parameters */
+    const initial = 1000;
+    const maximum = 1000;
+    const shared  = true;
+    self.memory = new LocalSharedMemory(initial, maximum, shared); 
+#
+
 ### 1. malloc() ###
 It is regular C like malloc function that can allocate space in memory. First two unsigned integers (8 bytes) of LocalSharedMemory is used by total allocation information and every malloc request will stored here:
 
