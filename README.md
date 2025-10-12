@@ -6,7 +6,7 @@ LocalSharedMemory is a simple WebAssembly.Memory object which can be transferred
 
 #
 
-### 0. new ###
+### 0. new LocalSharedMemory() ###
 Constructing a LocalSharedMemory can be done with using regular construction methods:
 
     /* default page size = 1000 */
