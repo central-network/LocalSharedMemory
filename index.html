@@ -10,17 +10,4 @@
     console.warn(memory.malloc(7, 0))
     console.table(memory.allocs())
 
-    const worker = new Worker(URL.createObjectURL(new Blob([`
-    ${LocalSharedMemory}
-    onmessage = e => {
-        self.memory = e.data;
-        Reflect.setPrototypeOf(memory, LocalSharedMemory.prototype)
-        console.warn(memory)
-        console.warn(memory.allocs())
-    }
-    `])))
-
-    requestIdleCallback(() => {
-        worker.postMessage(memory)
-    })
 </script>
