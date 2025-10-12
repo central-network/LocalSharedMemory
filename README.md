@@ -1,51 +1,72 @@
 # LocalSharedMemory
 
-**A lightweight, developer-friendly memory manager for `WebAssembly.Memory` and `SharedArrayBuffer` in JavaScript.**
+<p align="center">
+  <br />
+  <strong><code>LocalSharedMemory</code></strong>
+  <br />
+  A micro-library that brings C-style <code>malloc</code> and intuitive memory management to JavaScript's <code>SharedArrayBuffer</code> and <code>WebAssembly.Memory</code>.
+</p>
 
-`LocalSharedMemory` extends the standard `WebAssembly.Memory` object, equipping it with a familiar C-style `malloc` allocation system and a rich set of tools for easier, safer, and more intuitive memory manipulation in multi-threaded web environments.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
 
-It's designed to simplify the complexities of manual memory management when working with Workers, providing a structured and efficient way to allocate and access shared data blocks.
+---
+
+## Why LocalSharedMemory?
+
+Working directly with `SharedArrayBuffer` can be complex. It requires manual tracking of byte offsets, ensuring data is aligned correctly, and carefully managing memory segments, especially in multi-threaded applications using Web Workers.
+
+`LocalSharedMemory` abstracts away these complexities. It provides a simple, robust, and developer-friendly API to allocate, manage, and access shared memory blocks, letting you focus on your application logic instead of low-level memory gymnastics.
 
 ## Key Features
 
-- **C-Style Memory Allocation:** Simple and powerful `malloc()` for dynamic memory allocation.
-- **Automatic Memory Alignment:** Ensures allocated blocks meet alignment requirements for optimal performance.
-- **Easy Allocation Tracking:** Inspect all allocated memory blocks with the `allocs()` method.
-- **Rich Data Accessors:** Includes a comprehensive set of `get/set` methods for all standard numeric types (e.g., `getUint32`, `setFloat64`).
-- **Typed Array Views:** Easily create `TypedArray` views (`Uint8Array`, `Float32Array`, etc.) on your allocated memory segments.
-- **Atomic Operations:** Built-in support for atomic operations for safe, concurrent data manipulation in multi-threaded applications.
-- **Seamless Integration:** As an extension of `WebAssembly.Memory`, it can be used wherever a standard memory object is expected.
+-   🚀 **Zero Dependencies:** A single, lightweight JavaScript module.
+-   🧠 **Familiar C-Style API:** Easy and powerful `malloc()` for dynamic memory allocation.
+-   🔩 **Automatic Memory Alignment:** Ensures allocated blocks meet alignment requirements for optimal performance across all platforms.
+-   📊 **Easy Allocation Tracking:** Inspect all allocated memory blocks at any time with the `allocs()` method.
+-   ✍️ **Rich Data Accessors:** A comprehensive set of `get/set` methods for all standard numeric types (e.g., `getUint32`, `setFloat64`).
+-   👀 **Versatile Memory Views:** Effortlessly create `TypedArray` views (`Uint8Array`, `Float32Array`, etc.), `DataView`s, or even copies as standard `ArrayBuffer`s.
+-   ⚛️ **Built-in Atomics:** Wrapper methods for safe, concurrent data manipulation in multi-threaded environments.
+-   🧩 **Seamless Integration:** Extends `WebAssembly.Memory`, so it can be used wherever a standard memory object is expected.
 
 ## Quick Start
 
-Here's a simple example of how to use `LocalSharedMemory`:
+### 1. Installation
+
+Since it's a single module, just import it into your project.
 
 ```javascript
 import LocalSharedMemory from "./LocalSharedMemory.js";
+```
 
-// 1. Create a new shared memory instance.
+### 2. Usage Example
+
+```javascript
+// Create a new shared memory instance.
+// Manages a block of memory that can be shared between threads.
 const memory = new LocalSharedMemory();
 
-// 2. Allocate memory.
-// Allocate 24 bytes, aligned to the default 16 bytes.
-const ptr1 = memory.malloc(24);
+// Allocate memory using malloc().
+// Returns a "pointer" (byte offset) to the start of the block.
+const ptr1 = memory.malloc(32); // Allocate 32 bytes
+const ptr2 = memory.malloc(100); // Allocate another 100 bytes
 
-// Allocate 5 bytes, aligned to 2 bytes.
-const ptr2 = memory.malloc(5, 2); 
+// Write and read data using familiar getter/setter methods.
+memory.setFloat64(ptr1, Math.PI);
+memory.setInt32(ptr1 + 8, 9999); // Write at an offset from the pointer
 
-// 3. Write and read data.
-// Set a 32-bit integer at the beginning of the first allocation.
-memory.setInt32(ptr1, 12345);
+const pi = memory.getFloat64(ptr1); // Returns ~3.14159
+const myInt = memory.getInt32(ptr1 + 8); // Returns 9999
 
-// Get the value back.
-const myValue = memory.getInt32(ptr1); // Returns 12345
-
-// 4. Create a TypedArray view on the second allocation.
-const myData = new Uint8Array([10, 20, 30, 40, 50]);
+// Create a TypedArray view to work with a memory block more easily.
 const uint8View = memory.arrayView(Uint8Array, ptr2);
-uint8View.set(myData);
 
-// 5. Inspect all allocations.
+// Fill the view with data
+uint8View.fill(255, 0, 50); // Set the first 50 bytes to 255
+uint8View[51] = 128;
+
+// Inspect all current allocations in a clean table format.
 console.table(memory.allocs());
 ```
 
@@ -53,11 +74,11 @@ console.table(memory.allocs());
 
 ### `new LocalSharedMemory(initial, maximum, shared)`
 
-Creates a new memory instance. It accepts the same parameters as the standard `WebAssembly.Memory` constructor.
+Creates a new memory instance. It accepts the same parameters as the `WebAssembly.Memory` constructor.
 
--   `initial` (Number): The initial size of the memory, in WebAssembly pages (64KB each). Defaults to `1000`.
--   `maximum` (Number): The maximum size the memory is allowed to grow to. Defaults to `initial`.
--   `shared` (Boolean): Whether the memory is shared. Defaults to `true`.
+-   `initial` (Number): The initial size of the memory, in WebAssembly pages (64KB each). **Default:** `1000`.
+-   `maximum` (Number): The maximum size the memory is allowed to grow to. **Default:** `initial`.
+-   `shared` (Boolean): Whether the memory is shared. **Default:** `true`.
 
 ---
 
@@ -66,10 +87,10 @@ Creates a new memory instance. It accepts the same parameters as the standard `W
 Allocates a block of memory.
 
 -   `byteLength` (Number): The required size of the allocation in bytes.
--   `alignBytes` (Number): The byte boundary to align the allocation to. Defaults to `16`.
+-   `alignBytes` (Number): The byte boundary to align the allocation to. **Default:** `16`.
 -   **Returns** (Number): The byte offset (pointer) to the start of the allocated block.
 
-Each allocation includes an 8-byte header just before the returned offset, which stores the requested `byteLength` and the total internal buffer size.
+*Each allocation includes an 8-byte header just before the returned offset, which stores metadata.*
 
 ---
 
@@ -77,63 +98,57 @@ Each allocation includes an 8-byte header just before the returned offset, which
 
 Retrieves a list of all memory blocks allocated by `malloc()`.
 
--   **Returns** (Array): An array of objects, where each object contains information about an allocation:
+-   **Returns** (Array): An array of objects, where each object contains:
     -   `byteOffset`: The starting offset of the writable data area.
     -   `byteLength`: The user-requested size of the allocation.
-    -   `bufferSize`: The total space used by the allocation in the buffer (including headers and alignment padding).
-    -   `buffer`: A `SharedArrayBuffer` slice of the allocated block for easy debugging.
+    -   `bufferSize`: The total space used by the allocation (including headers and padding).
+    -   `buffer`: A `SharedArrayBuffer` slice for debugging.
 
 ---
 
-### `sizeof(offset)`
+### `sizeof(offset)` & `lengthof(offset)`
 
-Returns the user-requested `byteLength` of an allocation at a given offset.
-
--   `offset` (Number): The pointer returned by `malloc()`.
--   **Returns** (Number): The size of the allocation in bytes.
-
-```javascript
-const byteOffset = memory.malloc(100);
-console.log(memory.sizeof(byteOffset)); // 100
-```
+-   `sizeof(offset)`: Returns the user-requested `byteLength` of an allocation.
+-   `lengthof(offset)`: Returns the internal `bufferSize` of an allocation (its total footprint).
 
 ---
 
 ### Data Accessors & Views
 
-`LocalSharedMemory` provides a rich API for accessing and manipulating the data in the buffer.
-
 #### View Methods
 
--   `arrayBuffer(offset, length)`: Returns a sliced `ArrayBuffer` copy (not shared). Useful for APIs that don't accept shared buffers.
+-   `arrayBuffer(offset, length)`: Returns a sliced `ArrayBuffer` copy (not shared).
 -   `sharedArrayBuffer(offset, length)`: Returns a sliced `SharedArrayBuffer` view.
 -   `dataView(offset, length)`: Returns a `DataView` of a memory segment.
--   `arrayView(TypedArray, offset, length)`: Returns a `TypedArray` (e.g., `Uint8Array`, `Float32Array`) view of a memory segment.
+-   `arrayView(TypedArray, offset, length)`: Returns a `TypedArray` (e.g., `Uint8Array`) view.
 
 #### Getter/Setter Methods
 
-A full suite of getter and setter methods are available for all standard numeric types. They all follow the same pattern:
+A full suite of getter and setter methods are available for all standard numeric types.
 
--   `get<Type>(offset)`
--   `set<Type>(offset, value)`
-
-**Example:**
-
-```javascript
-memory.setFloat64(ptr1, Math.PI);
-const pi = memory.getFloat64(ptr1);
-```
-
-**Available Types:** `Uint8`, `Int8`, `Uint16`, `Int16`, `Uint32`, `Int32`, `BigUint64`, `BigInt64`, `Float32`, `Float64`.
+| Type          | Setter Method         | Getter Method         |
+| ------------- | --------------------- | --------------------- |
+| `Int8`        | `setInt8(off, val)`   | `getInt8(off)`        |
+| `Uint8`       | `setUint8(off, val)`  | `getUint8(off)`       |
+| `Int16`       | `setInt16(off, val)`  | `getInt16(off)`       |
+| `Uint16`      | `setUint16(off, val)` | `getUint16(off)`      |
+| `Int32`       | `setInt32(off, val)`  | `getInt32(off)`       |
+| `Uint32`      | `setUint32(off, val)` | `getUint32(off)`      |
+| `Float32`     | `setFloat32(off, val)`| `getFloat32(off)`     |
+| `Float64`     | `setFloat64(off, val)`| `getFloat64(off)`     |
+| `BigInt64`    | `setBigInt64(off, val)`| `getBigInt64(off)`    |
+| `BigUint64`   | `setBigUint64(off, val)`| `getBigUint64(off)`   |
 
 ---
 
 ### Atomic Operations
 
-For safe concurrent operations in multi-threaded environments, you can use the built-in atomic methods, which wrap the global `Atomics` object.
+For safe concurrent operations, you can use the built-in atomic methods, which wrap the global `Atomics` object (e.g., `add`, `sub`, `and`, `or`, `xor`, `exchange`, `compareExchange`, `load`, `store`).
 
--   `add(TypedArray, index, value)`: Atomically adds a value at a given index.
--   ... and other standard atomic operations like `sub`, `and`, `or`, `xor`, `exchange`, `compareExchange`, `load`, `store`.
+```javascript
+// Atomically add 10 to a value at a specific index in a Uint32Array view
+memory.add(Uint32Array, index, 10);
+```
 
 ## License
 
