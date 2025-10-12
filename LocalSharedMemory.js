@@ -1,4 +1,4 @@
-self.memory = new class LocalSharedMemory extends WebAssembly.Memory {
+export default class LocalSharedMemory extends WebAssembly.Memory {
     
     static devicePageSize = 1000
 
@@ -14,17 +14,17 @@ self.memory = new class LocalSharedMemory extends WebAssembly.Memory {
 
     get length () { return this.ai32.at(0) }
 
-    get allocs () {
+    allocs () {
         const allocs = new Array();
         let offset = 16, length;
         while (length = this.lengthof(offset)) {
             const size = this.sizeof(offset);
 
             allocs.push({
-                offset, 
-                length,
-                size,
-                buffer: this.arrayBuffer(offset, size)
+                byteOffset: offset, 
+                bufferSize: length,
+                byteLength: size,
+                buffer: this.sharedArrayBuffer(offset, size)
             });
             
             offset += length
@@ -41,18 +41,19 @@ self.memory = new class LocalSharedMemory extends WebAssembly.Memory {
         return this.getUint32(offset ? offset - 4 : 0)
     }
 
-    malloc (size) {
-        if (!size) { throw `malloc needs size: ${size}` }
+    malloc (byteLength, alignBytes = 16) {
+        if (!byteLength) { throw `malloc needs size: ${byteLength}` }
 
-        let remain , length = 8 + size;
-        if (remain = length % 16) {
-            length += 16 - remain;
+        let remain , length = 8 + byteLength;
+        if (remain = length % alignBytes) {
+            length += alignBytes - remain;
         }
 
         const offset = 8 + Atomics.add(this.ai32, 0, length);
+        Atomics.add(this.ai32, 1, 1)
 
         this.setUint32(offset-4, length);
-        this.setUint32(offset-8, size);
+        this.setUint32(offset-8, byteLength);
 
         return offset;
     }
@@ -60,6 +61,11 @@ self.memory = new class LocalSharedMemory extends WebAssembly.Memory {
     arrayBuffer (offset, length) {
         if (!offset) { throw `offset required: ${offset}` }
         return this.arrayView(Uint8Array, offset, length).slice().buffer
+    }
+    
+    sharedArrayBuffer (offset, length) {
+        if (!offset) { throw `offset required: ${offset}` }
+        return this.buffer.slice(offset, offset+length)
     }
     
     dataView (offset, length = this.sizeof(offset)) {

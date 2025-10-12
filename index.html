@@ -1,0 +1,8 @@
+<meta charset="utf8" />
+<script type="module">
+    import LocalSharedMemory from "./LocalSharedMemory.js"
+    self.memory = new LocalSharedMemory()
+
+    console.warn(memory)
+    console.warn(memory.malloc(24))
+</script>
