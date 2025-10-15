@@ -169,6 +169,15 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
         return this.dataView(offset, Float64Array.BYTES_PER_ELEMENT).getFloat64(0, true)
     }
 
+    setBigVec128 (offset, value = 0) {
+        if (!offset) { throw `offset required: ${offset}` }
+        this.dataView(offset, 16).setBigVec128(0, value, true)
+    }
+
+    getBigVec128 (offset) {
+        return this.dataView(offset, 16).getBigVec128(0, true)
+    }
+
     add (TypedArray, index, value) {
         if (!index) { throw `index required: ${index}` }
         return Atomics.add(this.arrayView(TypedArray), index, value)
