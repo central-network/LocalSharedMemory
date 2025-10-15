@@ -115,13 +115,12 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
         return this.dataView(offset, BigUint64Array.BYTES_PER_ELEMENT).getBigUint64(0, true)
     }
 
-    setUint8 (offset, value = 0) {
-        if (!offset) { throw `offset required: ${offset}` }
-        this.dataView(offset, Uint8Array.BYTES_PER_ELEMENT).setUint8(0, value)
-    }
-
     getInt8 (offset) {
         return this.dataView(offset, Int8Array.BYTES_PER_ELEMENT).getInt8(0)
+    }
+
+    setInt8 (offset, value = 0) {
+        return this.dataView(offset, Int8Array.BYTES_PER_ELEMENT).setInt8(0, value, true)
     }
 
     setInt16 (offset, value = 0) {
