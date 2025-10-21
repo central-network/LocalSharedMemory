@@ -58,6 +58,14 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
         return offset;
     }
 
+    memcpy (dstByteOffset, srcByteOffset, byteLength) {
+        if (!byteLength) { throw `memcpy needs size: ${byteLength}` }
+
+        new Uint8Array(this.buffer, dstByteOffset, byteLength).set(
+            new Uint8Array(this.buffer, srcByteOffset, byteLength)
+        )
+    }
+
     arrayBuffer (offset, length) {
         if (!offset) { throw `offset required: ${offset}` }
         return this.arrayView(Uint8Array, offset, length).slice().buffer
