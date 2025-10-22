@@ -9,10 +9,10 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
             value: new Uint32Array(this.buffer, 0, 2)
         })
 
-        this.ai32.set([8])
+        this.ai32.set([0,8])
     }
 
-    get length () { return this.ai32.at(0) }
+    get length () { return this.ai32.at(1) }
 
     allocs () {
         const allocs = new Array();
@@ -34,11 +34,11 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
     }
 
     sizeof (offset) {
-        return this.getUint32(offset ? offset - 8 : 0)
+        return offset > 8 && this.getUint32(offset - 8);
     }
 
     lengthof (offset) {
-        return this.getUint32(offset ? offset - 4 : 0)
+        return offset > 8 && this.getUint32(offset - 4);
     }
 
     malloc (byteLength, alignBytes = 16) {
@@ -49,8 +49,7 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
             length += alignBytes - remain;
         }
 
-        const offset = 8 + Atomics.add(this.ai32, 0, length);
-        Atomics.add(this.ai32, 1, 1)
+        const offset = 8 + Atomics.add(this.ai32, 1, length);
 
         this.setUint32(offset-4, length);
         this.setUint32(offset-8, byteLength);
