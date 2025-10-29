@@ -1,3 +1,10 @@
+const TypedArray = Reflect.getPrototypeOf(Uint8Array);
+const TypedArrays = Object.fromEntries(Reflect.ownKeys(self).filter(k => TypedArray.isPrototypeOf(self[k])).map(k => [k, self[k]]))
+const TypedArrayPrototype = {
+    set: TypedArray.prototype.set,
+    map: TypedArray.prototype.map,
+};
+
 export default class LocalSharedMemory extends WebAssembly.Memory {
     
     static devicePageSize = 1000
@@ -6,10 +13,13 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
         super({ initial, maximum, shared });
 
         Reflect.defineProperty(this, "ai32", {
-            value: new Uint32Array(this.buffer, 0, 2)
+            value: Reflect.construct(
+                TypedArrays.Uint32Array, 
+                Array.of( this.buffer, 0, 2 )
+            )
         })
 
-        this.ai32.set([0,8])
+        Reflect.apply( TypedArrayPrototype.set, this.ai32, Array.of([0,16]) )
     }
 
     get length () { return this.ai32.at(1) }
@@ -34,11 +44,17 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
     }
 
     sizeof (offset) {
-        return offset > 8 && this.getUint32(offset - 8);
+        if (offset <= 16) {
+            return console.error(`offset < 16`, offset);
+        }
+        return this.getUint32(offset - 8);
     }
 
     lengthof (offset) {
-        return offset > 8 && this.getUint32(offset - 4);
+        if (offset <= 16) {
+            return console.error(`offset < 16`, offset);
+        }
+        return this.getUint32(offset - 4);
     }
 
     malloc (byteLength, alignBytes = 16) {
@@ -59,9 +75,28 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
 
     memcpy (dstByteOffset, srcByteOffset, byteLength) {
         if (!byteLength) { throw `memcpy needs size: ${byteLength}` }
+        if (!dstByteOffset) { throw `memcpy can't start zero: ${dstByteOffset}` }
 
-        new Uint8Array(this.buffer, dstByteOffset, byteLength).set(
-            new Uint8Array(this.buffer, srcByteOffset, byteLength)
+        const target = Reflect.construct(TypedArrays.Uint8Array, Array.of(this.buffer, dstByteOffset, byteLength))
+        const source = Reflect.construct(TypedArrays.Uint8Array, Array.of(this.buffer, srcByteOffset, byteLength))
+
+        Reflect.apply( 
+            TypedArrayPrototype.set, 
+            target, Array.of(source) 
+        )
+    }
+
+    memset (dstByteOffset, srcBuffer, srcByteOffset = 0, byteLength = srcBuffer.byteLength - srcByteOffset) {
+        if (!srcBuffer) { throw `memset needs buffer: ${srcBuffer}` }
+        if (!dstByteOffset) { throw `memset can't start zero: ${dstByteOffset}` }
+        if (!byteLength) { throw `memset needs size: ${byteLength}` }
+
+        const target = Reflect.construct(TypedArrays.Uint8Array, Array.of(this.buffer, dstByteOffset, byteLength))
+        const source = Reflect.construct(TypedArrays.Uint8Array, Array.of(srcBuffer, srcByteOffset, byteLength))
+
+        Reflect.apply( 
+            TypedArrayPrototype.set, 
+            target, Array.of(source) 
         )
     }
 
@@ -83,7 +118,7 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
     arrayView (TypedArray, offset, length = this.sizeof(offset) / TypedArray.BYTES_PER_ELEMENT) {
         if (!offset) { throw `offset required for arrayView: ${offset}` }
         if (!length) { throw `length required for arrayView: ${length}` }
-        return Reflect.construct(TypedArray, [this.buffer, offset, length])
+        return Reflect.construct(TypedArrays[ TypedArray.name ], [this.buffer, offset, length])
     }
 
     setUint8 (offset, value = 0) {
@@ -215,3 +250,22 @@ export default class LocalSharedMemory extends WebAssembly.Memory {
     }
 }
 
+Object.values(TypedArrays).forEach(TypedArrayClass => {
+    const BYTES_PER_ELEMENT = TypedArrayClass.BYTES_PER_ELEMENT;
+    const tagName = TypedArrayClass.name;
+    const prototype = LocalSharedMemory.prototype;
+    
+    Object.defineProperty(prototype, tagName, {
+        value : function (length = 0) {
+            const byteLength = length * BYTES_PER_ELEMENT;
+            const byteOffset = this.malloc( byteLength );
+            const buffer     = this.buffer;
+
+            return Reflect.construct( 
+                TypedArrayClass, [
+                    buffer, byteOffset, length
+                ] 
+            );
+        }
+    });
+});
